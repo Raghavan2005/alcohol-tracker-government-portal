@@ -1,4 +1,6 @@
+import { useRouter } from "next/navigation";
 export default function AdminLogin() {
+  const router = useRouter();
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center p-6">
         <div className="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
@@ -27,6 +29,7 @@ export default function AdminLogin() {
             <button
               type="submit"
               className="w-full bg-blue-500 text-white py-3 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onClick={() => router.push("/admin/admin-login")}
             >
               Login
             </button>
