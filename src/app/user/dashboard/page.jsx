@@ -23,37 +23,35 @@ const Badge = ({ children, className = '' }) => {
 };
 
 const AlcoholConsumptionDashboard = () => {
-  const [userData, setUserData] = useState({
-    // Personal Information
-    name: "Rajesh Kumar",
-    age: 35,
-    gender: "Male",
-    aadharNumber: "XXXX XXXX 1234",
-    contactNumber: "+91 98765 43210",
-    address: "123, Gandhi Nagar, Chennai, Tamil Nadu",
+  const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-    // Card Details
-    cardNumber: "ALC-2024-5678",
-    cardStatus: "Active", // Possible states: Active, Expired, Suspended
-    cardExpiryDate: "2025-03-31",
-    lastRenewalDate: "2024-03-15",
+  React.useEffect(() => {
+    // Get Aadhar number from local storage
+    const aadharNumber = localStorage.getItem("data");
 
-    // Consumption Details
-    monthlyLimit: 6,
-    currentMonthConsumption: 3,
-    healthRecommendation: "Moderate consumption: Up to 2 standard drinks per week",
-    
-    // Renewal Details
-    renewalEligibility: true,
-    renewalCost: 500, // in local currency
-    nextRenewalDue: "2025-03-15"
-  });
+    if (!aadharNumber) {
+      setError(" number not found in local storage");
+      setLoading(false);
+      return;
+    }
 
-  const handleCardRenewal = () => {
-    // Placeholder for renewal logic
-    alert(`Card Renewal Process Initiated\nRenewal Cost: ₹${userData.renewalCost}`);
-  };
+    // Fetch user details from API
+    fetch(`http://localhost:7333/api/viewdetails/${aadharNumber}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch user details");
+        return res.json();
+      })
+      .then((data) => {
+        console.log(data);
+        setUserData(data.user);
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
 
+ 
   const getCardStatusColor = () => {
     switch(userData.cardStatus) {
       case 'Active': return 'bg-green-100 text-green-800';
@@ -62,7 +60,8 @@ const AlcoholConsumptionDashboard = () => {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
-
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p style={{ color: "red" }}>{error}</p>;
   return (
     <div className="max-w-xl mx-auto bg-white text-black w-full p-4 space-y-4">
       {/* User Profile Card */}
@@ -79,15 +78,15 @@ const AlcoholConsumptionDashboard = () => {
         <CardContent className="p-4 grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-gray-600 flex items-center">
-              <CreditCard className="mr-2 h-4 w-4" /> Card Number
+              <CreditCard className="mr-2 h-4 w-4" /> Mobile Number
             </p>
-            <p className="font-semibold">{userData.cardNumber}</p>
+            <p className="font-semibold">{userData.mobileNumber}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600 flex items-center">
               <Calendar className="mr-2 h-4 w-4" /> Expiry Date
             </p>
-            <p className="font-semibold">{userData.cardExpiryDate}</p>
+            <p className="font-semibold">{userData.expirydate}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600 flex items-center">
@@ -99,7 +98,7 @@ const AlcoholConsumptionDashboard = () => {
             <p className="text-sm text-gray-600 flex items-center">
               <FileText className="mr-2 h-4 w-4" /> Aadhar Number
             </p>
-            <p className="font-semibold">{userData.aadharNumber}</p>
+            <p className="font-semibold">{userData.aadharnumber}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600 flex items-center">
@@ -122,11 +121,11 @@ const AlcoholConsumptionDashboard = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-gray-600">Last Renewal Date</p>
-              <p className="font-semibold">{userData.lastRenewalDate}</p>
+              <p className="font-semibold">{userData.expirydate}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Next Renewal Due</p>
-              <p className="font-semibold">{userData.nextRenewalDue}</p>
+              <p className="font-semibold">{userData.renewaldate}</p>
             </div>
           </div>
           
@@ -140,12 +139,12 @@ const AlcoholConsumptionDashboard = () => {
               )}
             </p>
             <p className="text-sm text-gray-600">
-              Renewal Cost: ₹{userData.renewalCost}
+              Renewal Cost: ₹300
             </p>
           </div>
           
           <Button 
-            onClick={handleCardRenewal}
+          //  onClick={handleCardRenewal}
             disabled={!userData.renewalEligibility}
             className="w-full"
           >
@@ -167,19 +166,19 @@ const AlcoholConsumptionDashboard = () => {
             <div className="flex justify-between items-center">
               <h3 className="text-md font-medium">Monthly Alcohol Limit</h3>
               <p className="text-sm">
-                {userData.currentMonthConsumption} / {userData.monthlyLimit} Bottles
+                {userData.remainingbottles} / {userData.totalbottles} Bottles
               </p>
             </div>
             <div className="bg-gray-200 rounded-full h-3 overflow-hidden">
               <div 
                 className="bg-green-500 h-full" 
                 style={{
-                  width: `${(userData.currentMonthConsumption / userData.monthlyLimit) * 100}%`
+                  width: `${(userData.remainingbottles / userData.totalbottles) * 100}%`
                 }}
               />
             </div>
             <p className="text-sm text-gray-600">
-              Remaining: {userData.monthlyLimit - userData.currentMonthConsumption} Bottles
+              Remaining: {userData.totalbottles - userData.remainingbottles} Bottles
             </p>
           </div>
 
