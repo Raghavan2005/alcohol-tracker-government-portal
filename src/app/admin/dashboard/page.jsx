@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect } from 'react';
-
+import { useRouter } from "next/navigation";
 import { 
   BarChart2, 
   Users, 
@@ -23,13 +23,120 @@ import {
 export default function AdminDashboard() {
   const [darkMode, setDarkMode] = useState(false);
   const [activeSection, setActiveSection] = useState('dashboard');
-  const [stats, setStats] = useState({
-    totalUsers: 5672,
-    activeCards: 4231,
-    pendingApplications: 237,
-    monthlyAlcoholQuota: 12,
-    averageConsumption: 8.5
-  });
+ 
+
+  const [users, setUsers] = useState([]);  // ✅ Move state here
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [stats, setStats] = useState(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (activeSection === 'manageApplications') {
+      const fetchUsers = async () => {
+        try {
+          const response = await fetch("http://localhost:7333/api/users");
+          if (!response.ok) throw new Error("Failed to fetch users");
+        
+          const data = await response.json();
+          console.log(data)
+          setUsers(data);
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchUsers();
+    }
+  }, [activeSection]); // ✅ Fetch only when `activeSection` changes
+  const handleUpdateStatus = async (mobileNumber, newStatus) => {
+    try {
+      const response = await fetch("http://localhost:7333/api/users/update-status", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mobileNumber: mobileNumber, isactive: newStatus }), // Fixed key name
+      });
+  
+      if (!response.ok) throw new Error("Failed to update user status");
+  
+      const data = await response.json();
+  
+      console.log(data);
+  
+      setUsers(users.map((user) => 
+        user.mobileNumber === mobileNumber ? { ...user, isactive: newStatus } : user
+      ));
+    } catch (err) {     
+      alert(err.message);
+    }
+  };
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const filteredUsers = users.filter((user) =>
+    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.mobileNumber.includes(searchQuery)
+  );
+  
+  const renderManageApplications = () => {
+    if (loading) return <p className="text-gray-500">Loading users...</p>;
+    if (error) return <p className="text-red-500">{error}</p>;
+  
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 transition-colors">
+        <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">
+          Manage Applications
+        </h2>
+  
+        {/* Search Bar */}
+        <input
+          type="text"
+          placeholder="Search by name or mobile number..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full p-2 mb-4 border border-gray-300 rounded-md dark:bg-gray-700 dark:text-white"
+        />
+  
+        {filteredUsers.length === 0 ? (
+          <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-md">
+            <p className="text-gray-600 dark:text-gray-300">No matching users found.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredUsers.map((user) => (
+              <div
+                key={user.id}
+                className="flex justify-between items-center bg-gray-100 dark:bg-gray-700 p-4 rounded-md"
+              >
+                <p className="text-gray-800 dark:text-gray-300">
+                  {user.name} ({user.mobileNumber})  
+                  <span className={`text-sm ${user.isactive ? "text-green-500" : "text-red-500"}`}>
+                    <span className="text-white "><br></br>Login Status:</span> {user.isactive ? "Active" : "Inactive"}
+                  </span>
+                </p>
+  
+                <div className="space-x-2">
+                  <button
+                    onClick={() => handleUpdateStatus(user.mobileNumber, true)}
+                    className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => handleUpdateStatus(user.mobileNumber, false)}
+                    className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition"
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Tasmac Shops Data
   const [tasmacShops, setTasmacShops] = useState([
@@ -59,21 +166,11 @@ export default function AdminDashboard() {
     }
   ]);
 
-  // New User Form State
-  const [newUser, setNewUser] = useState({
-    name: '',
-    aadharNumber: '',
-    dateOfBirth: '',
-    address: ''
-  });
-
   // Render different sections based on active tab
   const renderSection = () => {
     switch(activeSection) {
       case 'dashboard':
         return renderDashboard();
-      case 'newUser':
-        return renderNewUserForm();
       case 'tasmacShops':
         return renderTasmacShops();
       case 'manageApplications':
@@ -84,137 +181,84 @@ export default function AdminDashboard() {
   };
 
   // Dashboard Section
-  const renderDashboard = () => (
-    <>
-      {/* Statistics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard 
-          icon={<Users className="text-blue-500" />} 
-          title="Total Users" 
-          value={stats.totalUsers}
-          color="bg-blue-500"
-        />
-        <StatCard 
-          icon={<Database className="text-green-500" />} 
-          title="Active Cards" 
-          value={stats.activeCards}
-          color="bg-green-500"
-        />
-        <StatCard 
-          icon={<FileText className="text-yellow-500" />} 
-          title="Pending Applications" 
-          value={stats.pendingApplications}
-          color="bg-yellow-500"
-        />
-      </div>
-
-      {/* Detailed Dashboard Sections */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-5">
-        {/* Alcohol Consumption Overview */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
-              Alcohol Consumption Quota
-            </h2>
-            <Activity className="text-purple-500" />
-          </div>
-          <div className="space-y-2">
-            <p className="text-gray-600 dark:text-gray-400">
-              Monthly Allowed Quota: <span className="font-bold text-gray-800 dark:text-gray-100">{stats.monthlyAlcoholQuota} Bottles</span>
-            </p>
-            <p className="text-gray-600 dark:text-gray-400">
-              Average Monthly Consumption: <span className="font-bold text-gray-800 dark:text-gray-100">{stats.averageConsumption} Bottles</span>
-            </p>
-          </div>
+  const renderDashboard = () => {
+  
+  
+    useEffect(() => {
+      const fetchStats = async () => {
+        try {
+          const response = await fetch("http://localhost:7333/api/dashboard/stats");
+          if (!response.ok) throw new Error("Failed to fetch stats");
+  
+          const data = await response.json();
+          console.log(data)
+          setStats(data);
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+  
+      fetchStats();
+    }, []);
+  
+    if (loading) return <p className="text-gray-500">Loading dashboard...</p>;
+    if (error) return <p className="text-red-500">Error: {error}</p>;
+  
+    return (
+      <div className="p-6">
+        {/* 📊 Statistics Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <StatCard icon={<Users className="text-blue-500" />} title="Total Users" value={stats.totalUsers} color="bg-blue-500" />
+          <StatCard icon={<Database className="text-green-500" />} title="Active Cards" value={stats.activeUsers} color="bg-green-500" />
+          <StatCard icon={<FileText className="text-yellow-500" />} title="Pending Applications" value={stats.pendingApplications} color="bg-yellow-500" />
         </div>
-
-        {/* Action Items */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
-              Quick Actions
-            </h2>
-            <RefreshCw className="text-teal-500" />
+  
+        {/* 📌 Detailed Sections */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-5">
+          {/* 🍾 Alcohol Quota Overview */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Alcohol Consumption Quota</h2>
+              <Activity className="text-purple-500" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-gray-600 dark:text-gray-400">
+                Monthly Allowed Quota: <span className="font-bold text-gray-800 dark:text-gray-100">{stats.monthlyAlcoholQuota} Bottles</span>
+              </p>
+              <p className="text-gray-600 dark:text-gray-400">
+                Average Monthly Consumption: <span className="font-bold text-gray-800 dark:text-gray-100">{stats.averageConsumption} Bottles</span>
+              </p>
+            </div>
           </div>
-          <div className="space-y-3">
-            <button 
-              onClick={() => setActiveSection('tasmacShops')}
-              className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition flex items-center justify-center space-x-2"
-            >
-              <MapPin size={18} />
-              <span>View Tasmac Locations</span>
-            </button>
-            <button 
-              onClick={() => setActiveSection('newUser')}
-              className="w-full bg-green-500 text-white py-2 rounded-md hover:bg-green-600 transition flex items-center justify-center space-x-2"
-            >
-              <UserPlus size={18} />
-              <span>Add New User</span>
-            </button>
-            <button 
-              onClick={() => setActiveSection('manageApplications')}
-              className="w-full bg-yellow-500 text-white py-2 rounded-md hover:bg-yellow-600 transition flex items-center justify-center space-x-2"
-            >
-              <Archive size={18} />
-              <span>Manage Applications</span>
-            </button>
+  
+          {/* ⚡ Quick Actions */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Quick Actions</h2>
+              <RefreshCw className="text-teal-500" />
+            </div>
+            <div className="space-y-3">
+              <button className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition flex items-center justify-center space-x-2">
+                <MapPin size={18} />
+                <span>View Tasmac Locations</span>
+              </button>
+              <button className="w-full bg-green-500 text-white py-2 rounded-md hover:bg-green-600 transition flex items-center justify-center space-x-2">
+                <UserPlus size={18} />
+                <span>Register User</span>
+              </button>
+              <button className="w-full bg-yellow-500 text-white py-2 rounded-md hover:bg-yellow-600 transition flex items-center justify-center space-x-2">
+                <Archive size={18} />
+                <span>Manage Applications</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </>
-  );
+    );
+  };
 
-  // New User Form Section
-  const renderNewUserForm = () => (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 transition-colors">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">
-        Add New User
-      </h2>
-      <form className="space-y-4">
-        <div>
-          <label className="block text-gray-700 dark:text-gray-300 mb-2">Full Name</label>
-          <input 
-            type="text"
-            value={newUser.name}
-            onChange={(e) => setNewUser({...newUser, name: e.target.value})}
-            className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-gray-100"
-          />
-        </div>
-        <div>
-          <label className="block text-gray-700 dark:text-gray-300 mb-2">Aadhar Number</label>
-          <input 
-            type="text"
-            value={newUser.aadharNumber}
-            onChange={(e) => setNewUser({...newUser, aadharNumber: e.target.value})}
-            className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-gray-100"
-          />
-        </div>
-        <div>
-          <label className="block text-gray-700 dark:text-gray-300 mb-2">Date of Birth</label>
-          <input 
-            type="date"
-            value={newUser.dateOfBirth}
-            onChange={(e) => setNewUser({...newUser, dateOfBirth: e.target.value})}
-            className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-gray-100"
-          />
-        </div>
-        <div>
-          <label className="block text-gray-700 dark:text-gray-300 mb-2">Address</label>
-          <textarea 
-            value={newUser.address}
-            onChange={(e) => setNewUser({...newUser, address: e.target.value})}
-            className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-gray-100"
-          />
-        </div>
-        <button 
-          type="submit"
-          className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition"
-        >
-          Register User
-        </button>
-      </form>
-    </div>
-  );
 
   // Tasmac Shops Section
   const renderTasmacShops = () => (
@@ -249,22 +293,7 @@ export default function AdminDashboard() {
     </div>
   );
 
-  // Manage Applications Section
-  const renderManageApplications = () => (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 transition-colors">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">
-        Manage Applications
-      </h2>
-      <div className="space-y-4">
-        {/* Placeholder for application management UI */}
-        <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-md">
-          <p className="text-gray-600 dark:text-gray-300">
-            No pending applications at the moment.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+  
 
   // Utility Components (StatCard remains the same as in previous implementation)
   const StatCard = ({ icon, title, value, color }) => (
@@ -312,7 +341,7 @@ export default function AdminDashboard() {
           <nav className="space-y-4">
             {[
               { name: 'Dashboard', icon: <BarChart2 />, section: 'dashboard' },
-              { name: 'Add New User', icon: <UserPlus />, section: 'newUser' },
+             
               { name: 'Tasmac Shops', icon: <MapPin />, section: 'tasmacShops' },
               { name: 'Manage Applications', icon: <Archive />, section: 'manageApplications' }
             ].map((item) => (

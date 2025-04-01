@@ -2,13 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, User, Sun, Moon } from 'lucide-react';
 import Image from 'next/image'
+import { useRouter } from "next/navigation";
 export default function AdminLogin() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [darkMode, setDarkMode] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
+  const router = useRouter();
   // Check system preference and set initial dark mode
   useEffect(() => {
     const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -41,6 +42,16 @@ export default function AdminLogin() {
       
       // Reset error if login is successful
       setError('');
+      if(username === 'admin' && password === 'admin123') {
+        console.log('Login successful!');
+        sessionStorage.setItem("isadmin", true);
+
+        router.push("/admin/dashboard"); 
+      }
+      else {
+        throw new Error('Invalid credentials');
+      }
+      
       
       // You might want to add navigation or state management here
       // For example: router.push('/admin-dashboard') or dispatch login action

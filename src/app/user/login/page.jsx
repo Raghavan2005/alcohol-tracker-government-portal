@@ -30,7 +30,19 @@ export default function UserLogin() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const router = useRouter();
   const baseurl = "http://localhost:7333/api/login";
+  React.useEffect(() => {
+    // Get Aadhar number from local storage
+    const aadharNumber = localStorage.getItem("mobileNumber");
 
+    if (aadharNumber) {
+      setError("autologin..");
+    
+      router.push("/user/dashboard"); 
+      return;
+    }
+
+
+  }, []);
   const handleLogin = async (e) => {
     e.preventDefault();
 
@@ -55,7 +67,7 @@ export default function UserLogin() {
         } else {
           setError(data.message || "Login failed"); // Handle other errors
         }
-        return;
+       return;
       }
 
       // ✅ Store token safely
